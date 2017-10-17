@@ -2,7 +2,6 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 
-
 entity ALU is
     Port (
         a : in std_logic_vector(31 downto 0);
@@ -13,6 +12,7 @@ entity ALU is
         overflow : out std_logic
     );
 end ALU;
+
 
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
@@ -31,48 +31,80 @@ package ALU_pkg is
     end component;
 end package;
 
+
 architecture Behavioral of ALU is
-
-    signal a_u : unsigned(31 downto 0) := (others=>'0');
-    signal b_u : unsigned(31 downto 0) := (others=>'0');
-    signal r : unsigned(31 downto 0) := (others=>'0');
-
+    -- ALU Control Signals
+    constant ADD_C  : std_logic_vector(control'range) := "0000";
+    constant SUB_C  : std_logic_vector(control'range) := "0001";
+    constant AND_C  : std_logic_vector(control'range) := "0010";
+    constant OR_C   : std_logic_vector(control'range) := "0011";
+    constant XOR_C  : std_logic_vector(control'range) := "0100";
+    constant NOR_C  : std_logic_vector(control'range) := "0101";
+    constant SLT_C  : std_logic_vector(control'range) := "0110";
+    constant SLTU_C : std_logic_vector(control'range) := "0111";
+    constant SLL_C  : std_logic_vector(control'range) := "1000";
+    constant SRL_C  : std_logic_vector(control'range) := "1001";
+    constant SRA_C  : std_logic_vector(control'range) := "1010";
+    
+    -- Constant to compare to
+    constant zeros  : std_logic_vector(result'range) := (others=>'0');
+    
+    -- Signals are 1 bit larger than a, b, & result
+    signal a_u : unsigned(a'length downto 0) := (others=>'0');
+    signal b_u : unsigned(a'length downto 0) := (others=>'0');
+    signal a_s : signed(b'length downto 0) := (others=>'0');
+    signal b_s : signed(b'length downto 0) := (others=>'0');
+    signal result_i : std_logic_vector(result'length downto 0) := (others=>'0');
+    signal overflow_i : std_logic := '0'; -- Needed to avoid latch
+    
 begin
     
-    result <= std_logic_vector(r);
-    a_u <= unsigned(a);
-    b_u <= unsigned(b);
-    zero <= '0' when (r = x"00000000");
+    a_u <= '0' & unsigned(a);
+    b_u <= '0' & unsigned(b);
+    a_s <= a(a'high) & signed(a);
+    b_s <= b(b'high) & signed(b);
+    overflow_i <= result_i(result_i'high); -- Needed to avoid latch
     
-    process(a,b,control)
+    result <= result_i(result'range);
+    zero <= '1' when (result_i(result'range) = zeros) else '0';
+    overflow <= overflow_i;
+    
+    process(a_u,b_u,a_s,b_s,control)
     begin
+        --result_i <= (others=>'0');
         case control is
-            when "0000" => -- ADD
-                r <= a_u + b_u;
-            when "0001" => -- ADDU
-                --TODO
-            when "0010" => -- SUB
-                r <= a_u - b_u;
-            when "0011" => -- SUBU
-                --TODO
-            when "0100" => -- AND
-                r <= a_u and b_u;
-            when "0101" => -- OR
-                r <= a_u or b_u;
-            when "0110" => -- XOR
-                --TODO  
-            when "0111" => -- NOR
-                --TODO
-            when "1000" => -- SLT
-                if a < b then
-                    r <= x"FFFFFFFF";
+            when ADD_C =>
+                result_i <= std_logic_vector(a_u + b_u);
+            when SUB_C =>
+                result_i <= std_logic_vector(a_u - b_u);
+            when AND_C =>
+                result_i <= std_logic_vector(a_u and b_u);
+            when OR_C =>
+                result_i <= std_logic_vector(a_u or b_u);
+            when XOR_C =>
+                result_i <= std_logic_vector(a_u xor b_u); 
+            when NOR_C =>
+                result_i <= '0' & std_logic_vector(a_u(a'range) nor b_u(b'range));
+            when SLT_C =>
+                if a_s < b_s then
+                    result_i <= (result'range=>'1', others=>'0');
                 else
-                    r <= x"00000000";
+                    result_i <= (others=>'0');
                 end if;
-            when "1001" => -- SLTU
-                --TODO
+            when SLTU_C =>
+                if a_u < b_u then
+                    result_i <= (result'range=>'1', others=>'0');
+                else
+                    result_i <= (others=>'0');
+                end if;
+            when SLL_C =>
+                result_i <= std_logic_vector(a_u sll to_integer(b_u));
+            when SRL_C =>
+                result_i <= std_logic_vector(a_u srl to_integer(b_u));
+            when SRA_C =>
+                result_i <= (others=>'0');
             when others =>
-                r <= a_u + b_u;
+                result_i <= (others=>'0');
         end case;
     end process control;
 end Behavioral;
