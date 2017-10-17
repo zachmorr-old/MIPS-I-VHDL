@@ -49,13 +49,13 @@ architecture Behavioral of ALU is
     -- Constant to compare to
     constant zeros  : std_logic_vector(result'range) := (others=>'0');
     
-    -- Signals are 1 bit larger than a, b, & result
+    -- Signals are 1 bit larger than a, b, & result to account for overflow
     signal a_u : unsigned(a'length downto 0) := (others=>'0');
     signal b_u : unsigned(a'length downto 0) := (others=>'0');
     signal a_s : signed(b'length downto 0) := (others=>'0');
     signal b_s : signed(b'length downto 0) := (others=>'0');
     signal result_i : std_logic_vector(result'length downto 0) := (others=>'0');
-    signal overflow_i : std_logic := '0'; -- Needed to avoid latch
+    signal overflow_i : std_logic := '0';
     
 begin
     
@@ -63,15 +63,13 @@ begin
     b_u <= '0' & unsigned(b);
     a_s <= a(a'high) & signed(a);
     b_s <= b(b'high) & signed(b);
-    overflow_i <= result_i(result_i'high); -- Needed to avoid latch
     
     result <= result_i(result'range);
     zero <= '1' when (result_i(result'range) = zeros) else '0';
-    overflow <= overflow_i;
+    overflow <= result_i(result_i'high); 
     
     process(a_u,b_u,a_s,b_s,control)
     begin
-        --result_i <= (others=>'0');
         case control is
             when ADD_C =>
                 result_i <= std_logic_vector(a_u + b_u);
@@ -84,8 +82,8 @@ begin
             when XOR_C =>
                 result_i <= std_logic_vector(a_u xor b_u); 
             when NOR_C =>
-                result_i <= '0' & std_logic_vector(a_u(a'range) nor b_u(b'range));
-            when SLT_C =>
+                result_i <= '0' & std_logic_vector(a_u(a'range) nor b_u(b'range)); -- Upper bits are alway 0, must ignore
+            when SLT_C =>                                                          -- them or overflow bit will assert
                 if a_s < b_s then
                     result_i <= (result'range=>'1', others=>'0');
                 else
@@ -102,9 +100,9 @@ begin
             when SRL_C =>
                 result_i <= std_logic_vector(a_u srl to_integer(b_u));
             when SRA_C =>
-                result_i <= (others=>'0');
+                result_i <= (others=>'0'); -- TODO
             when others =>
                 result_i <= (others=>'0');
         end case;
-    end process control;
+    end process;
 end Behavioral;

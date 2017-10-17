@@ -124,7 +124,7 @@ begin
                 when XORI_OPCODE => 
                     alu_control <= XOR_C;
                 when LUI_OPCODE => 
-                    --TODO
+                    alu_control <= ADD_C; --TODO
                 when others =>
                     alu_control <= ADD_C;
             end case;
